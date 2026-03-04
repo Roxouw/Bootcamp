@@ -2,7 +2,6 @@
 import "dotenv/config";
 
 import fastifySwagger from '@fastify/swagger'
-import fastifySwaggerUi from '@fastify/swagger-ui'
 import fastifyApiReference from '@scalar/fastify-api-reference'
 import Fastify from "fastify";
 import {
