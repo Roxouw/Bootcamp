@@ -1,8 +1,8 @@
-// Import the framework and instantiate it
 import "dotenv/config";
 
-import fastifySwagger from '@fastify/swagger'
-import fastifyApiReference from '@scalar/fastify-api-reference'
+import fastifyCors from "@fastify/cors";
+import fastifySwagger from "@fastify/swagger";
+import fastifyApiReference from "@scalar/fastify-api-reference";
 import Fastify from "fastify";
 import {
   jsonSchemaTransform,
@@ -11,14 +11,18 @@ import {
   ZodTypeProvider,
 } from "fastify-type-provider-zod";
 import z from "zod";
+
 import { auth } from "./lib/auth.js";
-import fastifyCors from "@fastify/cors";
+import { aiRoutes } from "./routes/ai.js";
+import { homeRoutes } from "./routes/home.js";
+import { meRoutes } from "./routes/me.js";
+import { statsRoutes } from "./routes/stats.js";
+import { workoutPlanRoutes } from "./routes/workout-plan.js";
 
 const app = Fastify({
   logger: true,
 });
 
-// Add schema validator and serializer
 app.setValidatorCompiler(validatorCompiler);
 app.setSerializerCompiler(serializerCompiler);
 
@@ -26,13 +30,13 @@ await app.register(fastifySwagger, {
   openapi: {
     info: {
       title: "Bootcamp Treinos API",
-      description: "API para o Bootcamp Treinos do FMR",
+      description: "API para o bootcamp de treinos do FSC",
       version: "1.0.0",
     },
     servers: [
       {
-        url: "http://localhost:8081",
         description: "Localhost",
+        url: "http://localhost:8080",
       },
     ],
   },
@@ -40,9 +44,9 @@ await app.register(fastifySwagger, {
 });
 
 await app.register(fastifyCors, {
-  origin: ["http://localhost:3000"], // Allow only the frontend origin
-  credentials: true, // Allow cookies to be sent
-})
+  origin: ["http://localhost:3000"],
+  credentials: true,
+});
 
 await app.register(fastifyApiReference, {
   routePrefix: "/docs",
@@ -57,17 +61,25 @@ await app.register(fastifyApiReference, {
         title: "Auth API",
         slug: "auth-api",
         url: "/api/auth/open-api/generate-schema",
-      }
-    ]
-  }
+      },
+    ],
+  },
 });
+
+// RESTful
+// Routes
+await app.register(homeRoutes, { prefix: "/home" });
+await app.register(meRoutes, { prefix: "/me" });
+await app.register(statsRoutes, { prefix: "/stats" });
+await app.register(workoutPlanRoutes, { prefix: "/workout-plans" });
+await app.register(aiRoutes, { prefix: "/ai" });
 
 app.withTypeProvider<ZodTypeProvider>().route({
   method: "GET",
   url: "/swagger.json",
   schema: {
     hide: true,
-    },
+  },
   handler: async () => {
     return app.swagger();
   },
@@ -77,8 +89,8 @@ app.withTypeProvider<ZodTypeProvider>().route({
   method: "GET",
   url: "/",
   schema: {
-    description: "Hello World Description",
-    tags: ["hello-world Tag"],
+    description: "Hello world",
+    tags: ["Hello World"],
     response: {
       200: z.object({
         message: z.string(),
@@ -87,12 +99,11 @@ app.withTypeProvider<ZodTypeProvider>().route({
   },
   handler: () => {
     return {
-      message: "Hello World Handler",
+      message: "Hello World",
     };
   },
 });
 
-// Register authentication endpoint
 app.route({
   method: ["GET", "POST"],
   url: "/api/auth/*",
@@ -100,7 +111,7 @@ app.route({
     try {
       // Construct request URL
       const url = new URL(request.url, `http://${request.headers.host}`);
-      
+
       // Convert Fastify headers to standard Headers object
       const headers = new Headers();
       Object.entries(request.headers).forEach(([key, value]) => {
@@ -120,19 +131,17 @@ app.route({
       reply.send(response.body ? await response.text() : null);
     } catch (error) {
       app.log.error(error);
-      reply.status(500).send({ 
+      reply.status(500).send({
         error: "Internal authentication error",
-        code: "AUTH_FAILURE"
+        code: "AUTH_FAILURE",
       });
     }
-  }
+  },
 });
 
-// Run the server!
 try {
-  await app.listen({ port: Number(process.env.PORT || 8081) });
+  await app.listen({ port: Number(process.env.PORT) || 8081 });
 } catch (err) {
   app.log.error(err);
   process.exit(1);
 }
-
